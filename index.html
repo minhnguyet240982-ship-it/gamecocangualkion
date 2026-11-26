@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cờ Cá Ngựa: Ôn Tập Hóa Học 10</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #87CEEB 0%, #E0F6FF 100%);
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        /* Nền mây cuộn */
+        .clouds {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><path d="M40 70 a20 20 0 0 1 0 -40 a20 20 0 0 1 30 -10 a30 30 0 0 1 50 10 a20 20 0 0 1 0 40 z" fill="white" opacity="0.4"/></svg>') repeat;
+            animation: moveClouds 100s linear infinite;
+            z-index: -1;
+        }
+        @keyframes moveClouds {
+            from { background-position: 0 0; }
+            to { background-position: 1000px 0; }
+        }
+
+        /* Khu vực bàn cờ */
+        .board-container {
+            background-color: #a3e635; /* Grass green */
+            border: 12px solid #fef08a; /* Soft yellow border */
+            border-radius: 40px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2);
+            position: relative;
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        /* Các ô cờ */
+        .node {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 8%;
+            height: 8%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: white;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2), inset 0 3px 5px rgba(255,255,255,0.4);
+            border: 3px solid rgba(255,255,255,0.8);
+            z-index: 10;
+            transition: transform 0.2s;
+        }
+        .node:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* Cúp ở giữa */
+        .trophy {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            z-index: 5;
+            filter: drop-shadow(0 10px 5px rgba(0,0,0,0.3));
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+            50% { transform: translate(-50%, -50%) translateY(-15px); }
+        }
+
+        /* Quân cờ (người chơi) */
+        .piece {
+            position: absolute;
+            width: 5%;
+            height: 5%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid white;
+            z-index: 30;
+            transition: top 0.6s ease-in-out, left 0.6s ease-in-out;
+        }
+
+        /* Xúc xắc */
+        .dice {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 8px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            margin: 20px auto;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+        .dice:active {
+            transform: scale(0.95);
+        }
+        .dice.rolling {
+            animation: roll 0.5s linear infinite;
+        }
+
+        @keyframes roll {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.1); }
+            50% { transform: rotate(180deg) scale(1); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* Các lớp màu mảng */
+        .bg-color-0 { background-color: #ef4444; } /* Đỏ */
+        .bg-color-1 { background-color: #3b82f6; } /* Xanh dương */
+        .bg-color-2 { background-color: #10b981; } /* Xanh lá */
+        .bg-color-3 { background-color: #f59e0b; } /* Vàng */
+        .bg-color-4 { background-color: #8b5cf6; } /* Tím */
+        .bg-color-5 { background-color: #ec4899; } /* Hồng */
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            max-width: 90%;
+            width: 500px;
+            transform: scale(0.8);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 4px solid #3b82f6;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .btn-answer {
+            transition: all 0.2s;
+        }
+        .btn-answer:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-answer:active {
+            transform: translateY(1px);
+        }
+
+        /* Hiệu ứng hạt bụi (confetti) đơn giản */
+        .confetti {
+            position: absolute;
+            width: 10px; height: 10px;
+            background-color: #f00;
+            z-index: 200;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+
+        /* Trang trí */
+        .decoration {
+            position: absolute;
+            font-size: 2rem;
+            z-index: 5;
+            user-select: none;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col md:flex-row p-4 md:p-8 gap-6 text-slate-800">
+
+    <div class="clouds"></div>
+
+    <!-- Khu vực Bàn cờ -->
+    <div class="flex-1 flex items-center justify-center relative w-full">
+        <div class="board-container" id="board">
+            <div class="trophy" style="top: 50%; left: 50%;">🏆</div>
+            <!-- Các ô và quân cờ sẽ được tạo bằng JS -->
+        </div>
+    </div>
+
+    <!-- Khu vực Bảng điều khiển -->
+    <div class="w-full md:w-80 bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-4 border-white flex flex-col">
+        <h1 class="text-2xl font-black text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 uppercase tracking-wide">
+            Cờ Cá Ngựa Vui Học
+        </h1>
+
+        <!-- Danh sách Đội -->
+        <div class="space-y-3 mb-6" id="team-list">
+            <!-- Render JS -->
+        </div>
+
+        <!-- Lượt chơi & Xúc xắc -->
+        <div class="mt-auto bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 text-center">
+            <h2 class="font-bold text-lg text-slate-700 mb-2">Đến lượt: <span id="current-turn-name" class="text-red-500">Đội Đỏ</span></h2>
+            <div id="dice" class="dice bg-color-0 text-white shadow-[0_8px_0_#b91c1c] active:shadow-[0_0px_0_#b91c1c] active:translate-y-2">
+                🎲
+            </div>
+            <button id="btn-roll" class="mt-4 px-6 py-3 bg-gradient-to-b from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white font-bold rounded-xl shadow-[0_5px_0_#1d4ed8] active:shadow-[0_0px_0_#1d4ed8] active:translate-y-1 transition-all w-full text-lg">
+                Đổ Xúc Xắc!
+            </button>
+            <p id="action-log" class="mt-4 text-sm font-semibold text-slate-500 h-10"></p>
+        </div>
+    </div>
+
+    <!-- Modal Câu hỏi -->
+    <div id="question-modal" class="modal-overlay">
+        <div class="modal-content border-yellow-400">
+            <div class="text-center mb-4">
+                <span class="inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">Thử thách Hóa Học 10</span>
+                <h3 id="q-text" class="text-xl font-bold text-slate-800">Câu hỏi sẽ hiện ở đây?</h3>
+            </div>
+            <div id="q-answers" class="grid grid-cols-1 gap-3 mt-6">
+                <!-- Nút đáp án -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thông báo (Kết quả trả lời / Thắng) -->
+    <div id="alert-modal" class="modal-overlay">
+        <div class="modal-content text-center border-green-500" id="alert-box">
+            <div id="alert-icon" class="text-6xl mb-4">🎉</div>
+            <h3 id="alert-title" class="text-2xl font-black mb-2">Chính xác!</h3>
+            <p id="alert-msg" class="text-lg text-slate-600 mb-6">Bạn được tiến lên N bước.</p>
+            <button id="btn-alert-ok" class="px-8 py-3 bg-green-500 text-white font-bold rounded-xl shadow-[0_5px_0_#15803d] active:shadow-[0_0px_0_#15803d] active:translate-y-1 transition-all">
+                Tiếp tục
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA CÂU HỎI HÓA HỌC 10 (Quy tắc Octet & Liên kết Ion) ---
+        const questionBank = [
+            {
+                q: "Theo quy tắc octet, nguyên tử có xu hướng đạt cấu hình electron bền vững của nhóm nguyên tố nào?",
+                a: ["Kim loại kiềm", "Halogen", "Khí hiếm", "Kim loại kiềm thổ"],
+                correct: 2
+            },
+            {
+                q: "Nguyên tử Sodium (Na, Z=11) có xu hướng gì để đạt cấu hình octet?",
+                a: ["Nhận 1 electron", "Nhường 1 electron", "Nhường 2 electron", "Dùng chung electron"],
+                correct: 1
+            },
+            {
+                q: "Liên kết ion thường được hình thành giữa:",
+                a: ["Hai phi kim giống nhau", "Kim loại điển hình và phi kim điển hình", "Hai kim loại với nhau", "Các nguyên tử khí hiếm"],
+                correct: 1
+            },
+            {
+                q: "Bản chất của liên kết ion là gì?",
+                a: ["Sự dùng chung electron", "Lực hút tĩnh điện giữa các ion ngược dấu", "Sự nhường proton", "Lực tương tác Van der Waals"],
+                correct: 1
+            },
+            {
+                q: "Nguyên tử Oxygen (O, Z=8) cần làm gì để đạt cấu hình electron bền vững?",
+                a: ["Nhường 2 electron", "Nhận 1 electron", "Nhận 2 electron", "Nhường 6 electron"],
+                correct: 2
+            },
+            {
+                q: "Phân tử nào sau đây có chứa liên kết ion?",
+                a: ["H2O", "NH3", "NaCl", "CO2"],
+                correct: 2
+            },
+            {
+                q: "Trong quá trình tạo thành liên kết trong phân tử MgO, nguyên tử Mg đã:",
+                a: ["Nhận 2 electron", "Nhường 2 electron", "Dùng chung 2 electron", "Nhường 1 electron"],
+                correct: 1
+            },
+            {
+                q: "Ion mang điện tích dương được gọi là gì?",
+                a: ["Cation", "Anion", "Isotope", "Electron"],
+                correct: 0
+            },
+            {
+                q: "Hợp chất ion thường có tính chất vật lý nào sau đây?",
+                a: ["Nhiệt độ nóng chảy thấp", "Dễ bay hơi", "Trạng thái khí ở điều kiện thường", "Nhiệt độ nóng chảy và sôi cao"],
+                correct: 3
+            },
+            {
+                q: "Cấu hình electron của ion Na+ (Z=11) giống với nguyên tử khí hiếm nào?",
+                a: ["Helium (He)", "Neon (Ne)", "Argon (Ar)", "Krypton (Kr)"],
+                correct: 1
+            },
+            {
+                q: "Nguyên tử Chlorine (Cl, Z=17) có bao nhiêu electron ở lớp ngoài cùng?",
+                a: ["5", "6", "7", "8"],
+                correct: 2
+            },
+            {
+                q: "Khi nguyên tử Ca (Z=20) nhường 2 electron, nó tạo thành ion có ký hiệu là:",
+                a: ["Ca2-", "Ca+", "Ca2+", "Ca3+"],
+                correct: 2
+            },
+            {
+                q: "Nguyên tử Nitrogen (N, Z=7) cần nhận thêm bao nhiêu electron để đạt quy tắc octet?",
+                a: ["1", "2", "3", "4"],
+                correct: 2
+            },
+            {
+                q: "Liên kết trong phân tử CaCl2 là loại liên kết gì?",
+                a: ["Liên kết cộng hóa trị", "Liên kết ion", "Liên kết kim loại", "Liên kết hydrogen"],
+                correct: 1
+            },
+            {
+                q: "Anion là ion mang điện tích gì?",
+                a: ["Dương", "Âm", "Trung hòa", "Có thể dương hoặc âm"],
+                correct: 1
+            }
+        ];
+
+        let shuffledQuestions = [...questionBank].sort(() => Math.random() - 0.5);
+        let qIndex = 0;
+
+        function getNextQuestion() {
+            if (qIndex >= shuffledQuestions.length) {
+                shuffledQuestions = [...questionBank].sort(() => Math.random() - 0.5);
+                qIndex = 0;
+            }
+            return shuffledQuestions[qIndex++];
+        }
+
+        // --- CẤU HÌNH TRÒ CHƠI ---
+        const totalNodes = 30;
+        const teams = [
+            { id: 0, name: "Đội Đỏ", emoji: "🦄", color: "#ef4444", bgClass: "bg-red-500", borderClass: "border-red-600", pos: 0 },
+            { id: 1, name: "Đội Xanh", emoji: "🐶", color: "#3b82f6", bgClass: "bg-blue-500", borderClass: "border-blue-600", pos: 0 },
+            { id: 2, name: "Đội Lục", emoji: "🐰", color: "#10b981", bgClass: "bg-emerald-500", borderClass: "border-emerald-600", pos: 0 },
+            { id: 3, name: "Đội Vàng", emoji: "🦊", color: "#f59e0b", bgClass: "bg-amber-500", borderClass: "border-amber-600", pos: 0 }
+        ];
+        
+        let currentTurn = 0;
+        let isMoving = false;
+        let currentRoll = 0;
+        let nodesCoords = [];
+
+        // Elements
+        const boardEl = document.getElementById('board');
+        const teamListEl = document.getElementById('team-list');
+        const currentTurnNameEl = document.getElementById('current-turn-name');
+        const diceEl = document.getElementById('dice');
+        const btnRollEl = document.getElementById('btn-roll');
+        const actionLogEl = document.getElementById('action-log');
+        
+        const qModal = document.getElementById('question-modal');
+        const alertModal = document.getElementById('alert-modal');
+
+        // --- TẠO BÀN CỜ (Đường xoắn ốc) ---
+        function initBoard() {
+            // Tạo toạ độ theo đường xoắn ốc Archimedes từ ngoài vào trong
+            let startAngle = Math.PI; 
+            for (let i = 0; i < totalNodes; i++) {
+                let progress = i / (totalNodes - 1); 
+                let radius = 43 - (progress * 32); // Bán kính giảm từ 43% xuống 11%
+                let angle = startAngle - (progress * Math.PI * 3.5); // Xoay 1.75 vòng
+                
+                let x = 50 + radius * Math.cos(angle);
+                let y = 50 + radius * Math.sin(angle);
+                
+                nodesCoords.push({ x, y });
+
+                // Tạo Node element
+                let node = document.createElement('div');
+                node.className = `node bg-color-${i % 6}`;
+                node.style.left = `${x}%`;
+                node.style.top = `${y}%`;
+                node.innerText = i + 1;
+                boardEl.appendChild(node);
+            }
+
+            // Thêm toạ độ node 0 (điểm xuất phát chung, ngoài lề)
+            nodesCoords.unshift({ x: 8, y: 88 }); // Node 0
+
+            // Trang trí thêm hoa cỏ
+            const decos = ['🌻', '🐞', '🦋', '🌸', '🌲', '🍀', '🐇', '🐝'];
+            for(let i=0; i<15; i++) {
+                let d = document.createElement('div');
+                d.className = 'decoration';
+                d.innerText = decos[Math.floor(Math.random() * decos.length)];
+                d.style.left = `${Math.random() * 90 + 5}%`;
+                d.style.top = `${Math.random() * 90 + 5}%`;
+                d.style.transform = `rotate(${Math.random() * 360}deg) scale(${Math.random() * 0.5 + 0.8})`;
+                boardEl.appendChild(d);
+            }
+
+            // Khởi tạo quân cờ
+            teams.forEach(team => {
+                let piece = document.createElement('div');
+                piece.id = `piece-${team.id}`;
+                piece.className = `piece ${team.bgClass} text-white`;
+                piece.innerHTML = team.emoji;
+                // Vị trí node 0, offset nhẹ để không đè lên nhau
+                setPiecePosition(team.id, 0);
+                boardEl.appendChild(piece);
+            });
+
+            updateTeamUI();
+        }
+
+        function setPiecePosition(teamId, nodeIndex) {
+            const piece = document.getElementById(`piece-${teamId}`);
+            if(!piece) return;
+            
+            let coord;
+            if(nodeIndex >= totalNodes) {
+                coord = { x: 50, y: 50 }; // Cúp
+            } else {
+                coord = nodesCoords[nodeIndex];
+            }
+
+            // Offset để các quân cùng ô không đè nhau
+            let offsetX = 0;
+            let offsetY = 0;
+            let countSamePos = teams.filter(t => t.pos === nodeIndex).length;
+            if (countSamePos > 1 || nodeIndex === 0) {
+                 const angles = [0, 90, 180, 270];
+                 const offsetDist = nodeIndex === 0 ? 4 : 2;
+                 let angle = angles[teamId % 4] * Math.PI / 180;
+                 offsetX = Math.cos(angle) * offsetDist;
+                 offsetY = Math.sin(angle) * offsetDist;
+            }
+
+            piece.style.left = `calc(${coord.x}% + ${offsetX}%)`;
+            piece.style.top = `calc(${coord.y}% + ${offsetY}%)`;
+        }
+
+        function updateTeamUI() {
+            teamListEl.innerHTML = '';
+            teams.forEach(team => {
+                const isActive = team.id === currentTurn;
+                const activeClass = isActive ? 'ring-4 ring-offset-2 ring-blue-400 scale-105' : 'opacity-70';
+                
+                teamListEl.innerHTML += `
+                    <div class="flex items-center justify-between bg-white p-3 rounded-2xl border-2 ${team.borderClass} ${activeClass} transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner ${team.bgClass} text-white">
+                                ${team.emoji}
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 leading-tight">${team.name}</h3>
+                                <p class="text-xs text-slate-500 font-semibold">Ô số ${team.pos}</p>
+                            </div>
+                        </div>
+                        ${isActive ? '<div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>' : ''}
+                    </div>
+                `;
+            });
+
+            const currTeam = teams[currentTurn];
+            currentTurnNameEl.innerText = currTeam.name;
+            currentTurnNameEl.style.color = currTeam.color;
+            
+            // Đổi màu nút và xúc xắc theo đội
+            diceEl.className = `dice ${currTeam.bgClass} text-white shadow-[0_8px_0_${darkenColor(currTeam.color)}] active:shadow-[0_0px_0_${darkenColor(currTeam.color)}] active:translate-y-2`;
+            btnRollEl.className = `mt-4 px-6 py-3 text-white font-bold rounded-xl transition-all w-full text-lg ${currTeam.bgClass} hover:brightness-110 shadow-[0_5px_0_${darkenColor(currTeam.color)}] active:shadow-[0_0px_0_${darkenColor(currTeam.color)}] active:translate-y-1`;
+        }
+
+        // Hàm phụ làm tối màu hex cho shadow
+        function darkenColor(hex) {
+            // Giả lập đơn giản, vì đã dùng Tailwind color class nên shadow cũng set tay màu tối
+            const shadows = {
+                "#ef4444": "#b91c1c", // red
+                "#3b82f6": "#1d4ed8", // blue
+                "#10b981": "#047857", // emerald
+                "#f59e0b": "#b45309"  // amber
+            };
+            return shadows[hex] || "#000";
+        }
+
+        // --- LOGIC TRÒ CHƠI ---
+        const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+        btnRollEl.addEventListener('click', rollDice);
+        diceEl.addEventListener('click', rollDice);
+
+        function rollDice() {
+            if (isMoving) return;
+            isMoving = true;
+            actionLogEl.innerText = "Đang đổ xúc xắc...";
+
+            diceEl.classList.add('rolling');
+            
+            setTimeout(() => {
+                diceEl.classList.remove('rolling');
+                currentRoll = Math.floor(Math.random() * 6) + 1;
+                diceEl.innerText = diceFaces[currentRoll - 1];
+                
+                actionLogEl.innerText = `${teams[currentTurn].name} đổ được ${currentRoll}. Hãy trả lời câu hỏi!`;
+                
+                setTimeout(showQuestionModal, 800);
+            }, 1000);
+        }
+
+        let currentQuestionData = null;
+
+        function showQuestionModal() {
+            currentQuestionData = getNextQuestion();
+            document.getElementById('q-text').innerText = currentQuestionData.q;
+            
+            const ansContainer = document.getElementById('q-answers');
+            ansContainer.innerHTML = '';
+            
+            currentQuestionData.a.forEach((ansText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-answer w-full text-left p-4 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-400 font-semibold text-slate-700';
+                btn.innerText = `${String.fromCharCode(65 + idx)}. ${ansText}`;
+                btn.onclick = () => handleAnswer(idx);
+                ansContainer.appendChild(btn);
+            });
+
+            qModal.classList.add('active');
+        }
+
+        function handleAnswer(selectedIndex) {
+            qModal.classList.remove('active');
+            
+            const isCorrect = selectedIndex === currentQuestionData.correct;
+            const team = teams[currentTurn];
+
+            if (isCorrect) {
+                showAlert(true, "Tuyệt vời!", `Đáp án chính xác. ${team.name} được tiến lên ${currentRoll} bước!`);
+                document.getElementById('btn-alert-ok').onclick = () => {
+                    closeAlert();
+                    moveCurrentPiece(currentRoll);
+                };
+            } else {
+                let correctLetter = String.fromCharCode(65 + currentQuestionData.correct);
+                showAlert(false, "Sai rồi!", `Đáp án đúng là ${correctLetter}. ${team.name} bị mất lượt!`);
+                document.getElementById('btn-alert-ok').onclick = () => {
+                    closeAlert();
+                    nextTurn();
+                };
+            }
+        }
+
+        function showAlert(success, title, msg) {
+            const box = document.getElementById('alert-box');
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-msg').innerText = msg;
+            document.getElementById('alert-icon').innerText = success ? '🎉' : '💥';
+            
+            box.className = `modal-content text-center border-4 ${success ? 'border-green-500' : 'border-red-500'}`;
+            const btn = document.getElementById('btn-alert-ok');
+            btn.className = `px-8 py-3 text-white font-bold rounded-xl transition-all ${success ? 'bg-green-500 shadow-[0_5px_0_#15803d] active:shadow-[0_0px_0_#15803d]' : 'bg-red-500 shadow-[0_5px_0_#b91c1c] active:shadow-[0_0px_0_#b91c1c]'} active:translate-y-1`;
+            
+            alertModal.classList.add('active');
+            if(success) shootConfetti();
+        }
+
+        function closeAlert() {
+            alertModal.classList.remove('active');
+        }
+
+        function moveCurrentPiece(steps) {
+            const team = teams[currentTurn];
+            let targetPos = team.pos + steps;
+            
+            // Giới hạn max là 30 (Win)
+            if (targetPos >= totalNodes) {
+                targetPos = totalNodes; 
+            }
+
+            actionLogEl.innerText = `${team.name} di chuyển đến ô ${targetPos}...`;
+
+            // Di chuyển từng bước để tạo hiệu ứng
+            let stepInterval = setInterval(() => {
+                if (team.pos < targetPos) {
+                    team.pos++;
+                    setPiecePosition(team.id, team.pos);
+                    // Cập nhật lại vị trí các quân khác ở ô cũ và mới để tránh đè
+                    teams.forEach(t => { if(t.id !== team.id) setPiecePosition(t.id, t.pos); });
+                } else {
+                    clearInterval(stepInterval);
+                    checkWinCondition(team);
+                }
+            }, 400); // Tốc độ di chuyển mỗi ô
+        }
+
+        function checkWinCondition(team) {
+            if (team.pos >= totalNodes) {
+                setTimeout(() => {
+                    showAlert(true, "CHIẾN THẮNG! 🏆", `Chúc mừng ${team.name} đã về đích đầu tiên! Cả đội rất hiểu bài Hóa học 10!`);
+                    document.getElementById('btn-alert-ok').innerText = "Chơi lại";
+                    document.getElementById('btn-alert-ok').onclick = resetGame;
+                    // Bắn pháo hoa liên tục
+                    let interval = setInterval(shootConfetti, 500);
+                    setTimeout(() => clearInterval(interval), 5000);
+                }, 500);
+            } else {
+                nextTurn();
+            }
+        }
+
+        function nextTurn() {
+            currentTurn = (currentTurn + 1) % teams.length;
+            isMoving = false;
+            diceEl.innerText = '🎲';
+            actionLogEl.innerText = `Đến lượt ${teams[currentTurn].name}. Sẵn sàng!`;
+            updateTeamUI();
+        }
+
+        function resetGame() {
+            closeAlert();
+            teams.forEach(t => {
+                t.pos = 0;
+                setPiecePosition(t.id, 0);
+            });
+            currentTurn = 0;
+            isMoving = false;
+            diceEl.innerText = '🎲';
+            actionLogEl.innerText = "Trò chơi bắt đầu!";
+            shuffledQuestions = [...questionBank].sort(() => Math.random() - 0.5);
+            qIndex = 0;
+            updateTeamUI();
+        }
+
+        // --- HIỆU ỨNG ---
+        function shootConfetti() {
+            for (let i = 0; i < 30; i++) {
+                let conf = document.createElement('div');
+                conf.className = 'confetti';
+                const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ec4899'];
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.top = '-10px';
+                conf.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                document.body.appendChild(conf);
+                
+                setTimeout(() => conf.remove(), 4000);
+            }
+        }
+
+        // --- KHỞI CHẠY ---
+        window.onload = () => {
+            initBoard();
+            actionLogEl.innerText = "Trò chơi bắt đầu! Đổ xúc xắc nhé.";
+        };
+
+    </script>
+</body>
+</html>
